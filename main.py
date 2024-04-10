@@ -1,7 +1,7 @@
 import pygame
 import math
-import queue
-import queue 
+from queue import PriorityQueue 
+from queue import Queue
 
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
@@ -14,6 +14,8 @@ ORANGE = (255, 165 ,0)
 GREY = (128, 128, 128)
 TURQUOISE = (64, 224, 208)
 
+pygame.font.init()
+font = pygame.font.Font('freesansbold.ttf',35)
 spot_width = 40
 
 
@@ -25,9 +27,26 @@ class Spot:
         self.x = col * width
         self.y = row * width
         self.color = WHITE
+        self.neighbors = []
+        self.neighbors_nodiag = []
+
+    def get_pos(self):
+        return self.col , self.row
+
+    def make_closed(self):
+        self.color = RED
+
+    def make_open(self):
+        self.color = GREEN
+
+    def make_path(self):
+        self.color = PURPLE
+    
+    def make_end(self):
+        self.color = YELLOW
 
     def is_blocked(self):
-        return self.color == BLACK
+        return self.color == GREY or self.color == TURQUOISE
     
     def is_opened(self):
         return self.color == WHITE
@@ -37,11 +56,50 @@ class Spot:
         self.y = self.row * self.width
 
     def draw(self, win):
-	    pygame.draw.rect(win, self.color, (self.x, self.y, self.width, self.width))
+        pygame.draw.rect(win, self.color, (self.x, self.y, self.width, self.width))
+    
+    def update_neighbors(self, grid, map):
+        self.neighbors = []
+        if self.row > 1 and not grid[self.col][self.row - 1].is_blocked(): # UP
+            self.neighbors.append(grid[self.col][self.row - 1])
+            self.neighbors_nodiag.append(grid[self.col][self.row - 1])
+
+        if (self.row > 1 and not grid[self.col][self.row - 1].is_blocked()) and (self.col < map.noCol - 2 and not grid[self.col + 1][self.row].is_blocked()) and not grid[self.col + 1][self.row - 1].is_blocked(): # UPRIGHT
+            self.neighbors.append(grid[self.col + 1][self.row - 1])
+
+        if self.col < map.noCol - 2 and not grid[self.col + 1][self.row].is_blocked(): # RIGHT
+            self.neighbors.append(grid[self.col + 1][self.row])
+            self.neighbors_nodiag.append(grid[self.col + 1][self.row])
+
+        if (self.row < map.noRow - 2 and not grid[self.col][self.row + 1].is_blocked()) and (self.col > 1 and not grid[self.col - 1][self.row].is_blocked()) and not grid[self.col + 1][self.row + 1].is_blocked(): # DOWNRIGHT
+            self.neighbors.append(grid[self.col + 1][self.row + 1])
+
+        if self.row < map.noRow - 2 and not grid[self.col][self.row + 1].is_blocked(): # DOWN
+            self.neighbors.append(grid[self.col][self.row + 1])
+            self.neighbors_nodiag.append(grid[self.col][self.row + 1])
+
+        if (self.row < map.noRow - 2 and not grid[self.col][self.row + 1].is_blocked()) and (self.col > 1 and not grid[self.col - 1][self.row].is_blocked()) and not grid[self.col - 1][self.row + 1].is_blocked(): # DOWNLEFT
+            self.neighbors.append(grid[self.col - 1][self.row + 1])
+
+
+        if self.col > 1 and not grid[self.col - 1][self.row].is_blocked(): # LEFT
+            self.neighbors.append(grid[self.col - 1][self.row])
+            self.neighbors_nodiag.append(grid[self.col - 1][self.row])
+        
+        if (self.row > 1 and not grid[self.col][self.row - 1].is_blocked()) and (self.col > 1 and not grid[self.col - 1][self.row].is_blocked()) and not grid[self.col - 1][self.row - 1].is_blocked(): # UPLEFT
+            self.neighbors.append(grid[self.col - 1][self.row - 1])
+        
+
+        
         
 
 def eucliean_distance(x1, y1, x2, y2):
         return (((x2 - x1) ** 2) + ((y2 - y1) ** 2)) ** 0.5
+
+def h(p1, p2):
+        x1, y1 = p1
+        x2, y2 = p2
+        return abs(x1 - x2) + abs(y1 - y2)
 
 def connect_two_spot(grid, cur_spot: tuple, prev_spot: tuple, map):
     path = [] 
@@ -171,15 +229,15 @@ class Map():
     def draw_grid(self, win):
        
         for i in range(self.noRow):
-            pygame.draw.line(win, GREY, (0, i * spot_width), (self.WIN_WIDTH, i * spot_width))
+            pygame.draw.line(win, BLACK, (0, i * spot_width), (self.WIN_WIDTH, i * spot_width))
             for j in range(self.noCol):
-                pygame.draw.line(win, GREY, (j * spot_width, 0), (j * spot_width, self.WIN_HEIGHT))
+                pygame.draw.line(win, BLACK, (j * spot_width, 0), (j * spot_width, self.WIN_HEIGHT))
 
     def draw_start_end_point(self, win, grid):
         self.start.color = ORANGE
         self.dest.color = GREEN
         grid[self.start.col][self.start.row].color = ORANGE
-        grid[self.dest.col][self.dest.row].color = GREEN
+        grid[self.dest.col][self.dest.row].color = YELLOW
         
         
     
@@ -198,10 +256,161 @@ class Map():
             for j in range(0, len(path)):
                 grid[path[j][0]][path[j][1]].color = TURQUOISE  
 
-         
+    # A* algorhitm
+    
+    def reconstruct_path(self, came_from, current, draw, weight):
+        last = current
+        while current in came_from:
+            if current.col == last.col or current.row == last.row:
+                weight += 1
+            else:
+                weight += 1.5
+            last = current
+            current = came_from[current]
+            current.make_path()
+            
+            draw()
+            
+        return weight
+
+    def astar(self, draw, grid, start, end, weight):
+        count = 0
+        open_set = PriorityQueue()
+        open_set.put((0, count, start))
+        came_from = {}
+        g_score = {spot: float("inf") for col in grid for spot in col}
+        g_score[start] = 0
+        f_score = {spot: float("inf") for row in grid for spot in row}
+        f_score[start] = h(start.get_pos(), end.get_pos())
+        
+
+        open_set_hash = {start}
+
+        while not open_set.empty():
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+
+            current = open_set.get()[2]
+            open_set_hash.remove(current)
+
+            if current == end:
+                weight = self.reconstruct_path(came_from, end, draw, weight)
+                end.make_end()
+                return True, weight
+
+            for neighbor in current.neighbors:
+                if neighbor.col == current.col or neighbor.row == current.row:
+                    temp_g_score = g_score[current] + 1
+                else:
+                    temp_g_score = g_score[current] + 1.5
+
+                if temp_g_score < g_score[neighbor]:
+                    came_from[neighbor] = current
+                    g_score[neighbor] = temp_g_score
+                    f_score[neighbor] = temp_g_score + h(neighbor.get_pos(), end.get_pos())
+                    if neighbor not in open_set_hash:
+                        count += 1
+                        open_set.put((f_score[neighbor], count, neighbor))
+                        open_set_hash.add(neighbor)
+                        neighbor.make_open()
+
+            draw()
+
+            if current != start:
+                current.make_closed()
+
+        return False
+
+    # BFS
+    def BFS(self, draw, grid, start, end, weight):
+        open_set = Queue()
+        count = 0
+        open_set.put((count, start))
+        came_from = {}
+        
+        open_set_hash = {start}
+        
+        
+        while not open_set.empty():
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+
+            current = open_set.get()[1]
+            open_set_hash.remove(current)
+            
+
+            if current == end:
+                weight = self.reconstruct_path(came_from, end, draw, weight)
+                end.make_end()
+                return True, weight
+
+            for neighbor in current.neighbors:
+                if neighbor.color != RED and neighbor.color != ORANGE :
+                    if neighbor not in open_set_hash:
+                        came_from[neighbor] = current
+                        count += 1
+                        open_set.put((count, neighbor))
+                        open_set_hash.add(neighbor)
+                        neighbor.make_open()
+
+            draw()
+
+            if current != start:
+                current.make_closed()
+        return False
+
+    def Blind(self, draw, grid, start, end, weight):
+        count = 0
+        open_set = PriorityQueue()
+        open_set.put((0, count, start))
+        came_from = {}
+        g_score = {spot: float("inf") for col in grid for spot in col}
+        g_score[start] = 0
+        
+        
+
+        open_set_hash = {start}
+
+        while not open_set.empty():
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+
+            current = open_set.get()[2]
+            open_set_hash.remove(current)
+
+            if current == end:
+                weight = self.reconstruct_path(came_from, end, draw, weight)
+                end.make_end()
+                return True, weight
+
+            for neighbor in current.neighbors:
+                if neighbor.col == current.col or neighbor.row == current.row:
+                    temp_g_score = g_score[current] + 1
+                else:
+                    temp_g_score = g_score[current] + 1.5
+
+                if temp_g_score < g_score[neighbor]:
+                    came_from[neighbor] = current
+                    g_score[neighbor] = temp_g_score
+        
+                    if neighbor not in open_set_hash:
+                        count += 1
+                        open_set.put((g_score[neighbor], count, neighbor))
+                        open_set_hash.add(neighbor)
+                        neighbor.make_open()
+
+            draw()
+
+            if current != start:
+                current.make_closed()
+
+        return False
 
     # Drawing the window
-    def draw(self, win, grid):
+    def draw(self, win, grid, weight):
         win.fill(WHITE)
 
         for col in grid:
@@ -212,19 +421,23 @@ class Map():
 
         # Drawing border
         for i in range(0, self.noCol):
-            grid[i][0].color = BLACK
+            grid[i][0].color = GREY
         
         for y in range(0, self.noRow):
-            grid[i][y].color = BLACK
+            grid[i][y].color = GREY
             
         for j in range(0, self.noRow):
-            grid[0][j].color = BLACK
+            grid[0][j].color = GREY
             
         for z in range(0, self.noCol):
-            grid[z][j].color = BLACK
+            grid[z][j].color = GREY
         self.draw_start_end_point(win, grid)
         
-
+        weight_cost = "Cost: " + str(weight)
+        text = font.render(weight_cost, True, RED)
+        textRect = text.get_rect()
+        textRect.center = (100, 25)
+        win.blit(text,textRect)
         
         pygame.display.update()
  
@@ -232,10 +445,6 @@ class Map():
 
             
               
-
-
-      
-
 def main():
     
     map = Map()
@@ -245,18 +454,30 @@ def main():
     WIN = pygame.display.set_mode((WIN_WIDTH,WIN_HEIGHT))
 
     grid = map.create_grid(WIN_WIDTH, WIN_HEIGHT)
-    
-    run = True
-    map.draw(WIN,grid)
-    map.draw_obstacle(grid)
 
+    weight = 0
+    run = True
+    map.draw(WIN,grid,weight)
+    map.draw_obstacle(grid)
     while run:
-        map.draw(WIN,grid)
+        map.draw(WIN,grid, weight)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
+            if event.type == pygame.KEYDOWN:
+                weight = 0
+                if event.key == pygame.K_SPACE and map.start and map.dest:
+                    for col in grid:
+                        for spot in col:
+                            spot.update_neighbors(grid,map)
+
+                    weight = map.Blind(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]   
+                    
+                    
+                    
 
 main()
+
 
 
     

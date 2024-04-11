@@ -3,6 +3,7 @@ import math
 from queue import PriorityQueue 
 from queue import Queue
 import itertools
+import sys
 
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
@@ -20,6 +21,16 @@ font = pygame.font.Font('freesansbold.ttf',20)
 spot_width = 25
 
 
+
+
+                
+# Function to calculate heuristic value
+def h(p1, p2):
+        x1, y1 = p1
+        x2, y2 = p2
+        return (((x2 - x1) ** 2) + ((y2 - y1) ** 2)) ** 0.5
+
+# Class for storing spot's information
 class Spot:
     def __init__(self, row, col, width):
         self.width = spot_width
@@ -85,71 +96,8 @@ class Spot:
         if self.row < map.noRow - 2 and self.col < map.noCol - 2 and not grid[self.col + 1][self.row + 1].is_blocked(): # DOWNRIGHT
             self.neighbors.append(grid[self.col + 1][self.row + 1])
 
-                
 
-def h(p1, p2):
-        x1, y1 = p1
-        x2, y2 = p2
-        return (((x2 - x1) ** 2) + ((y2 - y1) ** 2)) ** 0.5
-
-def connect_two_spot(grid, cur_spot: tuple, prev_spot: tuple, map):
-    path = [] 
-    def eucliean_distance(x1, y1, x2, y2):
-        return (((x2 - x1) ** 2) + ((y2 - y1) ** 2)) ** 0.5
-    if prev_spot[0] == cur_spot[0]:
-        for match in range(0, abs(prev_spot[1] - cur_spot[1]) + 1):
-            if cur_spot[1] > prev_spot[1]:
-                
-                path.append((prev_spot[0], prev_spot[1] + match))
-
-            else:
-                
-                path.append((prev_spot[0], cur_spot[1] + match))
-
-    elif prev_spot[1] == cur_spot[1]:
-        for match in range(0, abs(prev_spot[0] - cur_spot[0]) + 1):
-            if cur_spot[0] > prev_spot[0]:
-                
-                path.append((prev_spot[0] + match, prev_spot[1]))
-
-            else:
-                
-                path.append((cur_spot[0] + match, cur_spot[1]))
-    else:           
-        positions = [(1, -1), (-1, 0), (-1, -1), (0, -1), (-1, 1), (1, 0), (0, 1), (1, 1)]
-        x_next = prev_spot[0]
-        y_next = prev_spot[1]
-        
-        while not (x_next == cur_spot[0] and y_next == cur_spot[1]):
-            
-            minimum = map.noRow * map.noCol
-            x_tmp = x_next
-            y_tmp = y_next
-            for position in positions:
-                if 0 < x_next + position[0] < map.noCol and 0 < y_next + position[1] < map.noRow:
-                    if x_next + position[0] == cur_spot[0] and y_next + position[1] == cur_spot[1]:
-                        x_tmp = cur_spot[0]
-                        y_tmp = cur_spot[1]
-                        break
-                    z = grid[x_next + position[0]][y_next + position[1]]
-                    if grid[x_next + position[0]][y_next + position[1]].color==WHITE:
-                        path_weight = round(eucliean_distance(x_next + position[0], y_next + position[1], cur_spot[0], cur_spot[1]), 2)
-                        
-                        if position[0] == 0 or position[1] == 0:
-                            path_weight += 1
-                        else:
-                            path_weight += 1.50
-                        if path_weight < minimum:
-                            minimum = path_weight
-                            x_tmp = x_next + position[0]
-                            y_tmp = y_next + position[1]
-
-            x_next = x_tmp
-            y_next = y_tmp
-            path.append((x_next,y_next))
-            
-    return path
-
+# Class to store the detail of the input file
 class Map():
     def __init__(self):
         self.noRow = 0
@@ -162,9 +110,6 @@ class Map():
         self.obstacle = []
         self.WIN_WIDTH = 0
         self.WIN_HEIGHT = 0
-        
-    
-        
 
     def get_start_coord(self):
         
@@ -217,8 +162,8 @@ class Map():
             self.obstacle.append(shape_coord)
     
     
-    # Create grid list 
-    def create_grid(self, WIN_WIDTH, WIN_HEIGHT):
+    # Create grid list which store all the spot on screen
+    def create_grid(self):
         grid = []
         
         for i in range(self.noCol):
@@ -247,10 +192,67 @@ class Map():
         #     grid[self.waypoints[i].col][self.waypoints[i].row] = BLUE
         
         
-    
+    #Drawing the obstacles
 
-    def draw_obstacle(self, grid):
-        
+    def draw_obstacle(self, grid): 
+        def connect_two_spot(grid, cur_spot: tuple, prev_spot: tuple, map):
+            path = [] 
+            def eucliean_distance(x1, y1, x2, y2):
+                return (((x2 - x1) ** 2) + ((y2 - y1) ** 2)) ** 0.5
+            if prev_spot[0] == cur_spot[0]:
+                for match in range(0, abs(prev_spot[1] - cur_spot[1]) + 1):
+                    if cur_spot[1] > prev_spot[1]:
+                        
+                        path.append((prev_spot[0], prev_spot[1] + match))
+
+                    else:
+                        
+                        path.append((prev_spot[0], cur_spot[1] + match))
+
+            elif prev_spot[1] == cur_spot[1]:
+                for match in range(0, abs(prev_spot[0] - cur_spot[0]) + 1):
+                    if cur_spot[0] > prev_spot[0]:
+                        
+                        path.append((prev_spot[0] + match, prev_spot[1]))
+
+                    else:
+                        
+                        path.append((cur_spot[0] + match, cur_spot[1]))
+            else:           
+                positions = [(1, -1), (-1, 0), (-1, -1), (0, -1), (-1, 1), (1, 0), (0, 1), (1, 1)]
+                x_next = prev_spot[0]
+                y_next = prev_spot[1]
+                
+                while not (x_next == cur_spot[0] and y_next == cur_spot[1]):
+                    
+                    minimum = map.noRow * map.noCol
+                    x_tmp = x_next
+                    y_tmp = y_next
+                    for position in positions:
+                        if 0 < x_next + position[0] < map.noCol and 0 < y_next + position[1] < map.noRow:
+                            if x_next + position[0] == cur_spot[0] and y_next + position[1] == cur_spot[1]:
+                                x_tmp = cur_spot[0]
+                                y_tmp = cur_spot[1]
+                                break
+                            z = grid[x_next + position[0]][y_next + position[1]]
+                            if grid[x_next + position[0]][y_next + position[1]].color==WHITE:
+                                path_weight = round(eucliean_distance(x_next + position[0], y_next + position[1], cur_spot[0], cur_spot[1]), 2)
+                                
+                                if position[0] == 0 or position[1] == 0:
+                                    path_weight += 1
+                                else:
+                                    path_weight += 1.50
+                                if path_weight < minimum:
+                                    minimum = path_weight
+                                    x_tmp = x_next + position[0]
+                                    y_tmp = y_next + position[1]
+
+                    x_next = x_tmp
+                    y_next = y_tmp
+                    path.append((x_next,y_next))
+                    
+            return path     
+
         for i in range(0, self.no_Of_obstacle):
             path = [(self.obstacle[i][0][0],self.obstacle[i][0][1])]
             grid[self.obstacle[i][0][0]][self.obstacle[i][0][1]].color = BLACK
@@ -268,8 +270,7 @@ class Map():
             y = self.waypoints[z].row 
             grid[x][y].color = BLUE
 
-    # A* algorhitm
-    
+    # Function to draw the found path from the algorithm
     def reconstruct_path(self, came_from, current, draw, weight):
         weight = -1
         last = current
@@ -290,7 +291,8 @@ class Map():
         draw()
             
         return weight
-
+    
+    # A* algorithm
     def astar(self, draw, grid, start, end, weight):
         count = 0
         open_set = PriorityQueue()
@@ -340,7 +342,7 @@ class Map():
 
         return False
 
-    # BFS
+    # BFS algorithm
     def BFS(self, draw, grid, start, end, weight):
         open_set = Queue()
         count = 0
@@ -380,6 +382,7 @@ class Map():
                 current.make_closed()
         return False
 
+    # Djastra algorithm
     def Blind(self, draw, grid, start, end, weight):
         count = 0
         open_set = PriorityQueue()
@@ -429,6 +432,7 @@ class Map():
 
         return False
 
+    # Function to find path to destination that goes through all checkpoint
     def waypoint_pathfinder(self,grid, draw):
         def calculate_path_distance(path):
             total_distance = 0
@@ -507,12 +511,6 @@ class Map():
             weight += astar_only_path(self, draw, grid, grid[x1][y1], grid[x2][y2], isEnd)[1]
         
         return weight
-            
-
-
-
-
-
 
 
     # Drawing the window
@@ -542,7 +540,7 @@ class Map():
         weight_cost = "Cost: " + str(weight)
         text = font.render(weight_cost, True, RED)
         textRect = text.get_rect()
-        textRect.center = (100, 25)
+        textRect.center = (100, 15)
         win.blit(text,textRect)
 
         
@@ -553,15 +551,28 @@ class Map():
             
               
 def main():
-    
     map = Map()
-    map.read_input_file("input_2.txt")
+    file_name = 0
+    option = 0
+    if len(sys.argv) == 5:
+        for i in range(len(sys.argv) - 1):
+            if sys.argv[i] == "--file":
+                file_name = sys.argv[i + 1]
+            elif sys.argv[i] == "--option":
+                option = sys.argv[i + 1]
+
+        if file_name is None or file_name == "":
+            print("Cannot find file")
+            exit(0)
+        if option is None or option == "":
+            print("Invalid option")
+            exit(0)
+
+    map.read_input_file(file_name)
     WIN_WIDTH = map.noCol*spot_width
     WIN_HEIGHT = map.noRow*spot_width
     WIN = pygame.display.set_mode((WIN_WIDTH,WIN_HEIGHT))
-
-    grid = map.create_grid(WIN_WIDTH, WIN_HEIGHT)
-
+    grid = map.create_grid()
     weight = 0
     run = True
     
@@ -572,17 +583,24 @@ def main():
         for spot in col:
             spot.update_neighbors(grid,map)
 
-    weight = map.waypoint_pathfinder(grid, lambda: map.draw(WIN, grid,weight))
+    
     while run:
         map.draw(WIN,grid, weight)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
-        
-            # if event.type == pygame.KEYDOWN:
-            #     weight = 0
-            #     if event.key == pygame.K_SPACE and map.start and map.dest:
-            #         weight = map.astar(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]   
+            if event.type == pygame.KEYDOWN:
+                weight = 0
+                if event.key == pygame.K_SPACE and map.start and map.dest:
+                    if option == "astar":
+                        weight = map.astar(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]  
+                    elif option == "greedy":
+                        weight = map.BFS(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]
+                    elif option == "blind":
+                        weight = map.Blind(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]
+                    elif option == "waypoints":
+                        weight = map.waypoint_pathfinder(grid, lambda: map.draw(WIN, grid,weight))
+
                     
                     
                     

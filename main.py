@@ -15,8 +15,8 @@ GREY = (128, 128, 128)
 TURQUOISE = (64, 224, 208)
 
 pygame.font.init()
-font = pygame.font.Font('freesansbold.ttf',35)
-spot_width = 40
+font = pygame.font.Font('freesansbold.ttf',20)
+spot_width = 25
 
 
 class Spot:
@@ -28,7 +28,7 @@ class Spot:
         self.y = row * width
         self.color = WHITE
         self.neighbors = []
-        self.neighbors_nodiag = []
+        
 
     def get_pos(self):
         return self.col , self.row
@@ -60,49 +60,41 @@ class Spot:
     
     def update_neighbors(self, grid, map):
         self.neighbors = []
-        if self.row > 1 and not grid[self.col][self.row - 1].is_blocked(): # UP
-            self.neighbors.append(grid[self.col][self.row - 1])
-            self.neighbors_nodiag.append(grid[self.col][self.row - 1])
-
-        if (self.row > 1 and not grid[self.col][self.row - 1].is_blocked()) and (self.col < map.noCol - 2 and not grid[self.col + 1][self.row].is_blocked()) and not grid[self.col + 1][self.row - 1].is_blocked(): # UPRIGHT
+        if (self.row > 1 and self.col < map.noCol - 2 and not grid[self.col + 1 ][self.row - 1].is_blocked()) : # UPRIGHT
             self.neighbors.append(grid[self.col + 1][self.row - 1])
-
-        if self.col < map.noCol - 2 and not grid[self.col + 1][self.row].is_blocked(): # RIGHT
-            self.neighbors.append(grid[self.col + 1][self.row])
-            self.neighbors_nodiag.append(grid[self.col + 1][self.row])
-
-        if (self.row < map.noRow - 2 and not grid[self.col][self.row + 1].is_blocked()) and (self.col > 1 and not grid[self.col - 1][self.row].is_blocked()) and not grid[self.col + 1][self.row + 1].is_blocked(): # DOWNRIGHT
-            self.neighbors.append(grid[self.col + 1][self.row + 1])
-
-        if self.row < map.noRow - 2 and not grid[self.col][self.row + 1].is_blocked(): # DOWN
-            self.neighbors.append(grid[self.col][self.row + 1])
-            self.neighbors_nodiag.append(grid[self.col][self.row + 1])
-
-        if (self.row < map.noRow - 2 and not grid[self.col][self.row + 1].is_blocked()) and (self.col > 1 and not grid[self.col - 1][self.row].is_blocked()) and not grid[self.col - 1][self.row + 1].is_blocked(): # DOWNLEFT
-            self.neighbors.append(grid[self.col - 1][self.row + 1])
-
 
         if self.col > 1 and not grid[self.col - 1][self.row].is_blocked(): # LEFT
             self.neighbors.append(grid[self.col - 1][self.row])
-            self.neighbors_nodiag.append(grid[self.col - 1][self.row])
-        
-        if (self.row > 1 and not grid[self.col][self.row - 1].is_blocked()) and (self.col > 1 and not grid[self.col - 1][self.row].is_blocked()) and not grid[self.col - 1][self.row - 1].is_blocked(): # UPLEFT
+
+        if self.row > 1 and self.col > 1 and not grid[self.col - 1][self.row - 1].is_blocked(): # UPLEFT
             self.neighbors.append(grid[self.col - 1][self.row - 1])
-        
 
-        
-        
+        if self.row > 1 and not grid[self.col][self.row - 1].is_blocked(): # UP
+            self.neighbors.append(grid[self.col][self.row - 1])
 
-def eucliean_distance(x1, y1, x2, y2):
-        return (((x2 - x1) ** 2) + ((y2 - y1) ** 2)) ** 0.5
+        if self.row < map.noRow - 2 and self.col > 1 and not grid[self.col - 1][self.row + 1].is_blocked(): # DOWNLEFT
+            self.neighbors.append(grid[self.col - 1][self.row + 1])
+
+        if self.col < map.noCol - 2 and not grid[self.col + 1][self.row].is_blocked(): # RIGHT
+            self.neighbors.append(grid[self.col + 1][self.row])
+
+        if self.row < map.noRow - 2 and not grid[self.col][self.row + 1].is_blocked(): # DOWN
+            self.neighbors.append(grid[self.col][self.row + 1])
+
+        if self.row < map.noRow - 2 and self.col < map.noCol - 2 and not grid[self.col + 1][self.row + 1].is_blocked(): # DOWNRIGHT
+            self.neighbors.append(grid[self.col + 1][self.row + 1])
+
+                
 
 def h(p1, p2):
         x1, y1 = p1
         x2, y2 = p2
-        return abs(x1 - x2) + abs(y1 - y2)
+        return (((x2 - x1) ** 2) + ((y2 - y1) ** 2)) ** 0.5
 
 def connect_two_spot(grid, cur_spot: tuple, prev_spot: tuple, map):
     path = [] 
+    def eucliean_distance(x1, y1, x2, y2):
+        return (((x2 - x1) ** 2) + ((y2 - y1) ** 2)) ** 0.5
     if prev_spot[0] == cur_spot[0]:
         for match in range(0, abs(prev_spot[1] - cur_spot[1]) + 1):
             if cur_spot[1] > prev_spot[1]:
@@ -133,7 +125,7 @@ def connect_two_spot(grid, cur_spot: tuple, prev_spot: tuple, map):
             x_tmp = x_next
             y_tmp = y_next
             for position in positions:
-                if 0 < x_next + position[0] < map.noRow and 0 < y_next + position[1] < map.noCol:
+                if 0 < x_next + position[0] < map.noCol and 0 < y_next + position[1] < map.noRow:
                     if x_next + position[0] == cur_spot[0] and y_next + position[1] == cur_spot[1]:
                         x_tmp = cur_spot[0]
                         y_tmp = cur_spot[1]
@@ -163,6 +155,8 @@ class Map():
         self.noCol = 0
         self.start = Spot(0,0,spot_width)
         self.dest = Spot(0,0,spot_width)
+        self.no_Of_waypoint = 0
+        self.waypoints = []
         self.no_Of_obstacle = 0
         self.obstacle = []
         self.WIN_WIDTH = 0
@@ -191,12 +185,19 @@ class Map():
 
         # Get location of the starting position and the destination
         start_end_point_detail_line = input_file.readline().strip("\\ \n\r\t")
-        self.start.col = int(start_end_point_detail_line.split(",")[0])
-        self.start.row = self.noRow - int(start_end_point_detail_line.split(",")[1]) - 1
-        self.dest.col = int(start_end_point_detail_line.split(",")[2])
-        self.dest.row = self.noRow - int(start_end_point_detail_line.split(",")[3]) - 1
+        start_end_point_detail = [int(i) for i in start_end_point_detail_line.split(",")]
+        self.no_Of_waypoint = (len(start_end_point_detail) - 4) / 2
+        self.start.col = start_end_point_detail[0]
+        self.start.row = self.noRow - start_end_point_detail[1] - 1
+        self.dest.col = start_end_point_detail[2]
+        self.dest.row = self.noRow - start_end_point_detail[3] - 1
         self.start.update_coord()
         self.dest.update_coord()
+        if self.no_Of_waypoint > 0:
+            for i in range(4, int(self.no_Of_waypoint + 4)*2+1, 2):
+                waypoint = []
+                waypoint.append((start_end_point_detail[i], self.noRow - start_end_point_detail[i+1] - 1))
+                self.waypoints.append(waypoint)
 
 
         # Get the number of obstacles and details about them
@@ -393,10 +394,11 @@ class Map():
                     temp_g_score = g_score[current] + 1.5
 
                 if temp_g_score < g_score[neighbor]:
-                    came_from[neighbor] = current
-                    g_score[neighbor] = temp_g_score
+                    
         
                     if neighbor not in open_set_hash:
+                        came_from[neighbor] = current
+                        g_score[neighbor] = temp_g_score
                         count += 1
                         open_set.put((g_score[neighbor], count, neighbor))
                         open_set_hash.add(neighbor)
@@ -448,7 +450,7 @@ class Map():
 def main():
     
     map = Map()
-    map.read_input_file("input.txt")
+    map.read_input_file("input_2.txt")
     WIN_WIDTH = map.noCol*spot_width
     WIN_HEIGHT = map.noRow*spot_width
     WIN = pygame.display.set_mode((WIN_WIDTH,WIN_HEIGHT))
@@ -471,7 +473,7 @@ def main():
                         for spot in col:
                             spot.update_neighbors(grid,map)
 
-                    weight = map.Blind(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]   
+                    weight = map.astar(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]   
                     
                     
                     

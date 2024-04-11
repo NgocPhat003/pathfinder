@@ -2,10 +2,11 @@ import pygame
 import math
 from queue import PriorityQueue 
 from queue import Queue
+import itertools
 
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
-BLUE = (0, 255, 0)
+BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -194,9 +195,12 @@ class Map():
         self.start.update_coord()
         self.dest.update_coord()
         if self.no_Of_waypoint > 0:
-            for i in range(4, int(self.no_Of_waypoint + 4)*2+1, 2):
-                waypoint = []
-                waypoint.append((start_end_point_detail[i], self.noRow - start_end_point_detail[i+1] - 1))
+            for i in range(4, len(start_end_point_detail), 2):
+                waypoint = Spot(0, 0, spot_width)
+                waypoint.col = start_end_point_detail[i]
+                waypoint.row = self.noRow - start_end_point_detail[i+1] - 1
+                waypoint.update_coord()
+                
                 self.waypoints.append(waypoint)
 
 
@@ -234,11 +238,13 @@ class Map():
             for j in range(self.noCol):
                 pygame.draw.line(win, BLACK, (j * spot_width, 0), (j * spot_width, self.WIN_HEIGHT))
 
-    def draw_start_end_point(self, win, grid):
+    def draw_start_end_point(self, win, grid):     
         self.start.color = ORANGE
         self.dest.color = GREEN
         grid[self.start.col][self.start.row].color = ORANGE
         grid[self.dest.col][self.dest.row].color = YELLOW
+        # for i in range(len(self.waypoints)):
+        #     grid[self.waypoints[i].col][self.waypoints[i].row] = BLUE
         
         
     
@@ -256,10 +262,16 @@ class Map():
             path.extend(connect_two_spot(grid,self.obstacle[i][len(self.obstacle[i])-1],self.obstacle[i][0], self))
             for j in range(0, len(path)):
                 grid[path[j][0]][path[j][1]].color = TURQUOISE  
+            
+        for z in range(int(self.no_Of_waypoint)):
+            x = self.waypoints[z].col 
+            y = self.waypoints[z].row 
+            grid[x][y].color = BLUE
 
     # A* algorhitm
     
     def reconstruct_path(self, came_from, current, draw, weight):
+        weight = -1
         last = current
         while current in came_from:
             if current.col == last.col or current.row == last.row:
@@ -269,8 +281,13 @@ class Map():
             last = current
             current = came_from[current]
             current.make_path()
-            
-            draw()
+
+        if current.col == last.col or current.row == last.row:
+            weight += 1
+        else:
+            weight += 1.5
+
+        draw()
             
         return weight
 
@@ -344,7 +361,8 @@ class Map():
 
             if current == end:
                 weight = self.reconstruct_path(came_from, end, draw, weight)
-                end.make_end()
+                if end.color != BLUE:
+                    end.make_end()
                 return True, weight
 
             for neighbor in current.neighbors:
@@ -411,6 +429,92 @@ class Map():
 
         return False
 
+    def waypoint_pathfinder(self,grid, draw):
+        def calculate_path_distance(path):
+            total_distance = 0
+            for i in range(len(path) - 1):
+                total_distance += h(path[i].get_pos(), path[i+1].get_pos())
+            return total_distance
+        minimum = float('inf')
+        shortest_path = None
+        waypoint_permutations = itertools.permutations(self.waypoints)
+
+        for perm in waypoint_permutations:
+            path = [self.start] + list(perm) + [self.dest]
+            distance = calculate_path_distance(path)
+            if distance < minimum:
+                minimum = distance
+                shortest_path = path
+
+        def astar_only_path(map, draw, grid, start, end, isEnd):
+            weight = 0
+            count = 0
+            open_set = PriorityQueue()
+            open_set.put((0, count, start))
+            came_from = {}
+            g_score = {spot: float("inf") for col in grid for spot in col}
+            g_score[start] = 0
+            f_score = {spot: float("inf") for row in grid for spot in row}
+            f_score[start] = h(start.get_pos(), end.get_pos())
+        
+
+            open_set_hash = {start}
+
+            while not open_set.empty():
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+
+                current = open_set.get()[2]
+                open_set_hash.remove(current)
+
+                if current == end:
+                    weight = map.reconstruct_path(came_from, end, draw, weight)
+                    if isEnd:
+                        end.make_end()
+                    else:
+                        start.color = BLUE
+                    return True, weight
+
+                for neighbor in current.neighbors:
+                    if neighbor.col == current.col or neighbor.row == current.row:
+                        temp_g_score = g_score[current] + 1
+                    else:
+                        temp_g_score = g_score[current] + 1.5
+
+                    if temp_g_score < g_score[neighbor]:
+                        came_from[neighbor] = current
+                        g_score[neighbor] = temp_g_score
+                        f_score[neighbor] = temp_g_score + h(neighbor.get_pos(), end.get_pos())
+                        if neighbor not in open_set_hash:
+                            count += 1
+                            open_set.put((f_score[neighbor], count, neighbor))
+                            open_set_hash.add(neighbor)
+                            
+
+                draw()
+
+            return False
+        weight = 0
+        isEnd = False
+        for i in range(len(shortest_path) - 1):
+            if i == len(shortest_path) - 1:
+                isEnd = True
+            x1 = shortest_path[i].col
+            y1 = shortest_path[i].row
+            x2 = shortest_path[i+1].col
+            y2 = shortest_path[i+1].row
+            weight += astar_only_path(self, draw, grid, grid[x1][y1], grid[x2][y2], isEnd)[1]
+        
+        return weight
+            
+
+
+
+
+
+
+
     # Drawing the window
     def draw(self, win, grid, weight):
         win.fill(WHITE)
@@ -440,6 +544,7 @@ class Map():
         textRect = text.get_rect()
         textRect.center = (100, 25)
         win.blit(text,textRect)
+
         
         pygame.display.update()
  
@@ -459,21 +564,25 @@ def main():
 
     weight = 0
     run = True
+    
+    
     map.draw(WIN,grid,weight)
     map.draw_obstacle(grid)
+    for col in grid:
+        for spot in col:
+            spot.update_neighbors(grid,map)
+
+    weight = map.waypoint_pathfinder(grid, lambda: map.draw(WIN, grid,weight))
     while run:
         map.draw(WIN,grid, weight)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
-            if event.type == pygame.KEYDOWN:
-                weight = 0
-                if event.key == pygame.K_SPACE and map.start and map.dest:
-                    for col in grid:
-                        for spot in col:
-                            spot.update_neighbors(grid,map)
-
-                    weight = map.astar(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]   
+        
+            # if event.type == pygame.KEYDOWN:
+            #     weight = 0
+            #     if event.key == pygame.K_SPACE and map.start and map.dest:
+            #         weight = map.astar(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]   
                     
                     
                     

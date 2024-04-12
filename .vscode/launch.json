@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args": ["--file","input.txt","--option","greedy"],
+            "args": ["--file","input_2.txt","--option","waypoints"],
             "console": "integratedTerminal",
             "justMyCode": true
         }

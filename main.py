@@ -2,6 +2,7 @@ import pygame
 import math
 from queue import PriorityQueue 
 from queue import Queue
+from queue import LifoQueue
 import itertools
 import sys
 
@@ -197,29 +198,25 @@ class Map():
     def draw_obstacle(self, grid): 
         def connect_two_spot(grid, cur_spot: tuple, prev_spot: tuple, map):
             path = [] 
-            def eucliean_distance(x1, y1, x2, y2):
+            def h1(x1, y1, x2, y2):
                 return (((x2 - x1) ** 2) + ((y2 - y1) ** 2)) ** 0.5
             if prev_spot[0] == cur_spot[0]:
                 for match in range(0, abs(prev_spot[1] - cur_spot[1]) + 1):
                     if cur_spot[1] > prev_spot[1]:
-                        
                         path.append((prev_spot[0], prev_spot[1] + match))
 
                     else:
-                        
-                        path.append((prev_spot[0], cur_spot[1] + match))
+                         path.append((prev_spot[0], cur_spot[1] + match))
 
             elif prev_spot[1] == cur_spot[1]:
                 for match in range(0, abs(prev_spot[0] - cur_spot[0]) + 1):
                     if cur_spot[0] > prev_spot[0]:
-                        
                         path.append((prev_spot[0] + match, prev_spot[1]))
 
                     else:
-                        
-                        path.append((cur_spot[0] + match, cur_spot[1]))
+                         path.append((cur_spot[0] + match, cur_spot[1]))
             else:           
-                positions = [(1, -1), (-1, 0), (-1, -1), (0, -1), (-1, 1), (1, 0), (0, 1), (1, 1)]
+                moves = [(1, -1), (-1, 0), (-1, -1), (0, -1), (-1, 1), (1, 0), (0, 1), (1, 1)]
                 x_next = prev_spot[0]
                 y_next = prev_spot[1]
                 
@@ -228,7 +225,7 @@ class Map():
                     minimum = map.noRow * map.noCol
                     x_tmp = x_next
                     y_tmp = y_next
-                    for position in positions:
+                    for position in moves:
                         if 0 < x_next + position[0] < map.noCol and 0 < y_next + position[1] < map.noRow:
                             if x_next + position[0] == cur_spot[0] and y_next + position[1] == cur_spot[1]:
                                 x_tmp = cur_spot[0]
@@ -236,7 +233,7 @@ class Map():
                                 break
                             z = grid[x_next + position[0]][y_next + position[1]]
                             if grid[x_next + position[0]][y_next + position[1]].color==WHITE:
-                                path_weight = round(eucliean_distance(x_next + position[0], y_next + position[1], cur_spot[0], cur_spot[1]), 2)
+                                path_weight = round(h1(x_next + position[0], y_next + position[1], cur_spot[0], cur_spot[1]), 2)
                                 
                                 if position[0] == 0 or position[1] == 0:
                                     path_weight += 1
@@ -246,7 +243,6 @@ class Map():
                                     minimum = path_weight
                                     x_tmp = x_next + position[0]
                                     y_tmp = y_next + position[1]
-
                     x_next = x_tmp
                     y_next = y_tmp
                     path.append((x_next,y_next))
@@ -323,6 +319,8 @@ class Map():
                 if neighbor.col == current.col or neighbor.row == current.row:
                     temp_g_score = g_score[current] + 1
                 else:
+                    if grid[current.col + (neighbor.col - current.col)][current.row].color == TURQUOISE and grid[current.col][current.row + (neighbor.row - current.row)].color == TURQUOISE:
+                        continue
                     temp_g_score = g_score[current] + 1.5
 
                 if temp_g_score < g_score[neighbor]:
@@ -342,6 +340,49 @@ class Map():
 
         return False
 
+    # DFS
+    def DFS(self, draw, grid, start, end, weight):
+        open_set = LifoQueue()
+        count = 0
+        open_set.put((count, start))
+        came_from = {}
+        
+        open_set_hash = {start}
+        
+        
+        while not open_set.empty():
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+
+            current = open_set.get()[1]
+            open_set_hash.remove(current)
+            
+
+            if current == end:
+                weight = self.reconstruct_path(came_from, end, draw, weight)
+                if end.color != BLUE:
+                    end.make_end()
+                return True, weight
+
+            for neighbor in current.neighbors:
+                if neighbor.row != current.row and neighbor.col != current.col:
+                    if grid[current.col + (neighbor.col - current.col)][current.row].color == TURQUOISE and grid[current.col][current.row + (neighbor.row - current.row)].color == TURQUOISE:
+                            continue
+                
+                if neighbor.color != RED and neighbor.color != ORANGE :
+                    if neighbor not in open_set_hash:
+                        came_from[neighbor] = current
+                        count += 1
+                        open_set.put((count, neighbor))
+                        open_set_hash.add(neighbor)
+                        neighbor.make_open()
+
+            draw()
+
+            if current != start:
+                 current.make_closed()
+        return False
     # BFS algorithm
     def BFS(self, draw, grid, start, end, weight):
         open_set = Queue()
@@ -368,6 +409,9 @@ class Map():
                 return True, weight
 
             for neighbor in current.neighbors:
+                if neighbor.row != current.row and neighbor.col != current.col:
+                    if grid[current.col + (neighbor.col - current.col)][current.row].color == TURQUOISE and grid[current.col][current.row + (neighbor.row - current.row)].color == TURQUOISE:
+                            continue
                 if neighbor.color != RED and neighbor.color != ORANGE :
                     if neighbor not in open_set_hash:
                         came_from[neighbor] = current
@@ -412,6 +456,8 @@ class Map():
                 if neighbor.col == current.col or neighbor.row == current.row:
                     temp_g_score = g_score[current] + 1
                 else:
+                    if grid[current.col + (neighbor.col - current.col)][current.row].color == TURQUOISE and grid[current.col][current.row + (neighbor.row - current.row)].color == TURQUOISE:
+                            continue
                     temp_g_score = g_score[current] + 1.5
 
                 if temp_g_score < g_score[neighbor]:
@@ -484,6 +530,8 @@ class Map():
                     if neighbor.col == current.col or neighbor.row == current.row:
                         temp_g_score = g_score[current] + 1
                     else:
+                        if grid[current.col + (neighbor.col - current.col)][current.row].color == TURQUOISE and grid[current.col][current.row + (neighbor.row - current.row)].color == TURQUOISE:
+                            continue
                         temp_g_score = g_score[current] + 1.5
 
                     if temp_g_score < g_score[neighbor]:
@@ -594,8 +642,10 @@ def main():
                 if event.key == pygame.K_SPACE and map.start and map.dest:
                     if option == "astar":
                         weight = map.astar(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]  
-                    elif option == "greedy":
+                    elif option == "BFS":
                         weight = map.BFS(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]
+                    elif option == "DFS":
+                        weight = map.DFS(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]
                     elif option == "blind":
                         weight = map.Blind(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]
                     elif option == "waypoints":

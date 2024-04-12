@@ -638,18 +638,29 @@ def main():
             if event.type == pygame.QUIT:
                 run = False
             if event.type == pygame.KEYDOWN:
+                temp = 0
                 weight = 0
                 if event.key == pygame.K_SPACE and map.start and map.dest:
                     if option == "astar":
-                        weight = map.astar(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]  
+                        temp = map.astar(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)
+                        if temp != False:
+                            weight = temp[1]
                     elif option == "BFS":
-                        weight = map.BFS(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]
+                        temp = map.BFS(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)
+                        if temp != False:
+                            weight = temp[1]
                     elif option == "DFS":
-                        weight = map.DFS(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]
+                        temp = map.DFS(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)
+                        if temp != False:
+                            weight = temp[1]
                     elif option == "blind":
-                        weight = map.Blind(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)[1]
+                        temp = map.Blind(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)
+                        if temp != False:
+                            weight = temp[1]
                     elif option == "waypoints":
-                        weight = map.waypoint_pathfinder(grid, lambda: map.draw(WIN, grid,weight))
+                        temp = map.waypoint_pathfinder(grid, lambda: map.draw(WIN, grid,weight))
+                        if temp != False:
+                            weight = temp
 
                     
                     

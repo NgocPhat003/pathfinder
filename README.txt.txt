@@ -42,8 +42,7 @@ Bước 2: Tại terminal, cd đến thư mục chứa source code rồi nhập:
 	- Tìm kiếm có điểm đón: "waypoints"
 	Ex: python main.py --file input.txt --option astar
 (Các file input có sẵn để test:
-	input.txt và input_2.txt: 2 file input mẫu theo đề bài
-	input_3.txt: file input không có đường đi đến đích
-	input_4.txt: file input có 2 điểm đón
-	input_5.txt: file input có 3 điểm đón)
+	input_1.txt, input_2.txt: 2 file này dùng để test tìm đường đi ngắn nhất nhưng không có điểm đón (checkpoint)
+	input_3.txt, input_4.txt, input_5.txt: 3 file input này dùng để test các thuật toán tìm đường ngắn nhất, có các điểm đón (checkpoint) dọc đường
+	input_6.txt, input_7.txt: 2 file này dùng để test tìm đường đi ngắn nhất trong trường hợp không tồn tại đường đi
 	

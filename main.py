@@ -120,7 +120,7 @@ class Map():
         return self.dest.x, self.dest.y
 
     # Read file to create the map
-    def read_input_file(self, filename: str):
+    def read_input_file(self, filename: str, option: str):
         input_file = open(filename, "r")
         # Getting the dimension
         dimension_detail_line = input_file.readline().strip("\\ \n\r\t")
@@ -133,21 +133,22 @@ class Map():
         # Get location of the starting position and the destination
         start_end_point_detail_line = input_file.readline().strip("\\ \n\r\t")
         start_end_point_detail = [int(i) for i in start_end_point_detail_line.split(",")]
-        self.no_Of_waypoint = (len(start_end_point_detail) - 4) / 2
         self.start.col = start_end_point_detail[0]
         self.start.row = self.noRow - start_end_point_detail[1] - 1
         self.dest.col = start_end_point_detail[2]
         self.dest.row = self.noRow - start_end_point_detail[3] - 1
         self.start.update_coord()
         self.dest.update_coord()
-        if self.no_Of_waypoint > 0:
-            for i in range(4, len(start_end_point_detail), 2):
-                waypoint = Spot(0, 0, spot_width)
-                waypoint.col = start_end_point_detail[i]
-                waypoint.row = self.noRow - start_end_point_detail[i+1] - 1
-                waypoint.update_coord()
-                
-                self.waypoints.append(waypoint)
+        if option == "waypoints":
+            self.no_Of_waypoint = (len(start_end_point_detail) - 4) / 2
+            if self.no_Of_waypoint > 0:
+                for i in range(4, len(start_end_point_detail), 2):
+                    waypoint = Spot(0, 0, spot_width)
+                    waypoint.col = start_end_point_detail[i]
+                    waypoint.row = self.noRow - start_end_point_detail[i+1] - 1
+                    waypoint.update_coord()
+                    
+                    self.waypoints.append(waypoint)
 
 
         # Get the number of obstacles and details about them
@@ -288,6 +289,7 @@ class Map():
             
         return weight
     
+    # All algorithms
     # A* algorithm
     def astar(self, draw, grid, start, end, weight):
         count = 0
@@ -616,7 +618,7 @@ def main():
             print("Invalid option")
             exit(0)
 
-    map.read_input_file(file_name)
+    map.read_input_file(file_name, option)
     WIN_WIDTH = map.noCol*spot_width
     WIN_HEIGHT = map.noRow*spot_width
     WIN = pygame.display.set_mode((WIN_WIDTH,WIN_HEIGHT))

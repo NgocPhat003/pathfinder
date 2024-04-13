@@ -639,7 +639,6 @@ def main():
                 run = False
             if event.type == pygame.KEYDOWN:
                 temp = 0
-                weight = 0
                 if event.key == pygame.K_SPACE and map.start and map.dest:
                     if option == "astar":
                         temp = map.astar(lambda: map.draw(WIN, grid,weight), grid, grid[map.start.col][map.start.row], grid[map.dest.col][map.dest.row], weight)
